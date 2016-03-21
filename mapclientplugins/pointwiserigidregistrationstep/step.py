@@ -2,19 +2,18 @@
 '''
 MAP Client Plugin Step
 '''
-import os
+import json
+
 from PySide import QtGui
-from PySide import QtCore
 
 from mapclient.mountpoints.workflowstep import WorkflowStepMountPoint
 from mapclientplugins.pointwiserigidregistrationstep.configuredialog import ConfigureDialog
 
-from gias.common import alignment_fitting as AF
-from mapclientplugins.pointwiserigidregistrationstep.mayaviregistrationviewerwidget import MayaviRegistrationViewerWidget
-from mappluginutils.datatypes import transformations as T
+from mapclientplugins.pointwiserigidregistrationstep.registrationviewerwidget import RegistrationViewerWidget
+from gias2.mappluginutils.datatypes import transformations as T
+from gias2.registration import alignment_fitting as AF
 
 import numpy as np
-import time
 
 regMethods = {
               'Correspondent Rigid': AF.fitRigid,
@@ -65,7 +64,7 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
                       'python#float'))
         self._config = {}
         self._config['identifier'] = ''
-        self._config['UI Mode'] = 'True'
+        self._config['UI Mode'] = True
         self._config['Registration Method'] = 'Correspondent Affine'
         self._config['Min Relative Error'] = '1e-3'
         self._config['Points to Sample'] = '1000'
@@ -90,14 +89,13 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         print('points to sample:', self._config['Points to Sample'])
         # Put your execute step code here before calling the '_doneExecution' method.
         if self._config['UI Mode']:
-            self._widget = MayaviRegistrationViewerWidget(
+            self._widget = RegistrationViewerWidget(
                             self.sourceData, self.targetData, self._config,
                             self._register, sorted(regMethods.keys())
                             )
             self._widget._ui.acceptButton.clicked.connect(self._doneExecution)
             self._widget._ui.abortButton.clicked.connect(self._abort)
             self._widget._ui.resetButton.clicked.connect(self._reset)
-            self._widget.setModal(True)
             self._setCurrentWidget(self._widget)
         else:
             self._register()
@@ -194,7 +192,7 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         then set:
             self._configured = True
         '''
-        dlg = ConfigureDialog(sorted(regMethods.keys()))
+        dlg = ConfigureDialog(sorted(regMethods.keys()), QtGui.QApplication.activeWindow().currentWidget())
         dlg.identifierOccursCount = self._identifierOccursCount
         dlg.setConfig(self._config)
         dlg.validate()
@@ -218,7 +216,7 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         '''
         self._config['identifier'] = identifier
 
-    def serialize(self, location):
+    def serialize(self):
         '''
         Add code to serialize this step to disk.  The filename should
         use the step identifier (received from getIdentifier()) to keep it
@@ -226,45 +224,17 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         disk is:
             filename = getIdentifier() + '.conf'
         '''
-        configuration_file = os.path.join(location, self.getIdentifier() + '.conf')
-        conf = QtCore.QSettings(configuration_file, QtCore.QSettings.IniFormat)
-        conf.beginGroup('config')
-        conf.setValue('identifier', self._config['identifier'])
-        conf.setValue('Registration Method', self._config['Registration Method'])
-        conf.setValue('Min Relative Error', self._config['Min Relative Error'])
-        conf.setValue('Points to Sample', self._config['Points to Sample'])
-        conf.setValue('Init Trans', self._config['Init Trans'])
-        conf.setValue('Init Rot', self._config['Init Rot'])
-        conf.setValue('Init Scale', self._config['Init Scale'])
-        if self._config['UI Mode']:
-            conf.setValue('UI Mode', 'True')
-        else:
-            conf.setValue('UI Mode', 'False')
-        conf.endGroup()
+        return json.dumps(self._config, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
 
-    def deserialize(self, location):
+    def deserialize(self, string):
         '''
         Add code to deserialize this step from disk.  As with the serialize 
         method the filename should use the step identifier.  Obviously the 
         filename used here should be the same as the one used by the
         serialize method.
         '''
-        configuration_file = os.path.join(location, self.getIdentifier() + '.conf')
-        conf = QtCore.QSettings(configuration_file, QtCore.QSettings.IniFormat)
-        conf.beginGroup('config')
-        self._config['identifier'] = conf.value('identifier', '')
-        self._config['Registration Method'] = conf.value('Registration Method', 'Correspondent Rigid')
-        self._config['Min Relative Error'] = conf.value('Min Relative Error', '1e-3')
-        self._config['Points to Sample'] = conf.value('Points to Sample', '1000')
-        self._config['Init Trans'] = conf.value('Init Trans', '[0,0,0]')
-        self._config['Init Rot'] = conf.value('Init Rot', '[0,0,0]')
-        self._config['Init Scale'] = conf.value('Init Scale', '1.0')
-        if conf.value('UI Mode')=='True':
-            self._config['UI Mode'] = True
-        elif conf.value('UI Mode')=='False':
-            self._config['UI Mode'] = False
-        conf.endGroup()
+        self._config.update(json.loads(string))
 
         d = ConfigureDialog(sorted(regMethods.keys()))
         d.identifierOccursCount = self._identifierOccursCount

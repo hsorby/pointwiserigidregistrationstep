@@ -112,7 +112,7 @@ class ConfigureDialog(QtGui.QDialog):
         '''
         self._previousIdentifier = config['identifier']
         self._ui.lineEdit0.setText(config['identifier'])
-        self._ui.UICheckBox.setChecked(bool(config['UI Mode']))
+        self._ui.UICheckBox.setChecked(config['UI Mode'])
         self._ui.regMethodsComboBox.setCurrentIndex(self._regMethods.index(config['Registration Method']))
         self._ui.xtolLineEdit.setText(config['Min Relative Error'])
         self._ui.sampleLineEdit.setText(config['Points to Sample'])
