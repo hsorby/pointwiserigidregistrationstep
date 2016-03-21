@@ -10,8 +10,8 @@ from mapclient.mountpoints.workflowstep import WorkflowStepMountPoint
 from mapclientplugins.pointwiserigidregistrationstep.configuredialog import ConfigureDialog
 
 from mapclientplugins.pointwiserigidregistrationstep.registrationviewerwidget import RegistrationViewerWidget
-from gias2.mappluginutils.datatypes import transformations as T
 from gias2.registration import alignment_fitting as AF
+from gias2.mappluginutils.datatypes import transformations as T
 
 import numpy as np
 
@@ -49,10 +49,10 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         # Ports:
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#pointcloud'))
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#pointcloud'))  # source
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#pointcloud'))
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#pointcloud'))  # target
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#provides',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#pointcloud'))
@@ -176,7 +176,7 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
         '''
         if index == 2:
             portData2 = self.sourceDataAligned # ju#pointcloud
-            return portData2
+            return portData2.tolist()
         elif index == 3:
             portData3 = self.transform # ju#rigidtransformvector
             return portData3
@@ -218,21 +218,15 @@ class PointWiseRigidRegistrationStep(WorkflowStepMountPoint):
 
     def serialize(self):
         '''
-        Add code to serialize this step to disk.  The filename should
-        use the step identifier (received from getIdentifier()) to keep it
-        unique within the workflow.  The suggested name for the file on
-        disk is:
-            filename = getIdentifier() + '.conf'
+        Add code to serialize this step to disk. Returns a json string for
+        mapclient to serialise.
         '''
         return json.dumps(self._config, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
-
     def deserialize(self, string):
         '''
-        Add code to deserialize this step from disk.  As with the serialize 
-        method the filename should use the step identifier.  Obviously the 
-        filename used here should be the same as the one used by the
-        serialize method.
+        Add code to deserialize this step from disk. Parses a json string
+        given by mapclient
         '''
         self._config.update(json.loads(string))
 
